@@ -4,8 +4,6 @@ name: Deploy to GitHub Pages
 # to main. The build output (build/public) carries CNAME + 404.html from
 # client/public, so the deploy serves buildwithstem.com with SPA routing.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
