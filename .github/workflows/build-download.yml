@@ -1,0 +1,44 @@
+name: Build Stem Studio for download
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Stem Studio
+        run: BUILD_MODE=oss bun run build
+
+      - name: Verify build
+        run: |
+          test -f build/public/index.html
+          test -f build/public/editor.html
+          test -f build/public/play.html
+
+      - name: Package compiled files
+        run: |
+          cd build/public
+          zip -r ../../stem-studio-build.zip .
+
+      - name: Upload compiled files
+        uses: actions/upload-artifact@v4
+        with:
+          name: stem-studio-build
+          path: stem-studio-build.zip
+          retention-days: 7
