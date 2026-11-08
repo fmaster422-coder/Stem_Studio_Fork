@@ -141,28 +141,36 @@ export const ModelPreview = ({
         uploadSettings,
     });
 
-    return (
-        <Container>
-            <Wrapper ref={wrapperRef}>
-                <canvas ref={canvasRef}
-                    style={{ display: 'block', width: '100%', height: '100%' }}
-                />
-                {isVoxelizing && 
-                    <LoadingOverlay>
-                        <GradientSpinner />
-                        <LoadingText>Voxelizing model...</LoadingText>
-                    </LoadingOverlay>
-                }
-            </Wrapper>
-            <Content className="hidden-scroll">
+    
+return (
+    <Container>
+        <Wrapper ref={wrapperRef}>
+            <canvas
+                ref={canvasRef}
+                style={{ display: 'block', width: '100%', height: '100%' }}
+            />
+
+            {isVoxelizing && (
+                <LoadingOverlay>
+                    <GradientSpinner />
+                    <LoadingText>Voxelizing model...</LoadingText>
+                </LoadingOverlay>
+            )}
+        </Wrapper>
+
+        <Content className="hidden-scroll">
+            <div className="settings-scroll">
                 {isLoading
                     ? <GradientSpinner />
                     : <UploadSettingsSection
-                            maxLodLevel={maxLodLevel}
-                            uploadSettings={uploadSettings}
-                            setUploadSettings={setUploadSettings}
-                      />
+                        maxLodLevel={maxLodLevel}
+                        uploadSettings={uploadSettings}
+                        setUploadSettings={setUploadSettings}
+                    />
                 }
+            </div>
+
+            <div className="footer-fixed">
                 <ModelPreviewFooter
                     warnings={showWarnings ? warnings : []}
                     polygonCount={polygonCount}
@@ -172,9 +180,11 @@ export const ModelPreview = ({
                     handleSkip={onSkip}
                     handleCancel={onCancel}
                 />
-            </Content>
-        </Container>
-    );
+            </div>
+        </Content>
+    </Container>
+);
+
 };
 
 ModelPreview.displayName = "ModelPreview";
