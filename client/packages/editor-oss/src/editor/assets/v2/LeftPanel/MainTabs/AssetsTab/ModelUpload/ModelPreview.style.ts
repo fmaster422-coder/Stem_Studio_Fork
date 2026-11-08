@@ -1,11 +1,12 @@
+
 import styled from "styled-components";
 
 import {flexCenter, regularFont} from "../../../../../../../assets/style";
 
 export const Container = styled.div`
     position: fixed;
-    top: 50vh;
-    left: 50vw;
+    top: 50%;
+    left: 50%;
     transform: translate(-50%, -50%);
     z-index: 1000;
     width: 264px;
@@ -16,13 +17,19 @@ export const Container = styled.div`
     border-radius: 16px;
     color: var(--theme-font-main-selected-color);
 
-    ${flexCenter};
+    display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    row-gap: 0px;
+    align-items: stretch;
+    overflow: hidden;
 
     * {
         box-sizing: border-box;
+    }
+
+    @media screen and (max-height: 700px) and (orientation: landscape) {
+        height: min(618px, calc(100dvh - 16px));
+        width: min(264px, calc(100vw - 16px));
     }
 `;
 
@@ -35,10 +42,26 @@ export const CloseBtn = styled.button`
 
 export const Content = styled.div`
     width: 100%;
-    height: 100%;
+    flex: 1 1 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     position: relative;
+    overflow: hidden;
+
+    .settings-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .footer-fixed {
+        flex: 0 0 auto;
+        margin-top: auto;
+    }
 `;
 
 export const ContentWrapper = styled.div`
@@ -62,8 +85,14 @@ export const BottomBar = styled.div`
     text-align: center;
     flex-direction: column;
     gap: 12px;
+
     p {
         margin: 0;
+    }
+
+    @media screen and (max-height: 700px) and (orientation: landscape) {
+        padding: 4px 12px 8px;
+        gap: 5px;
     }
 `;
 
@@ -71,6 +100,7 @@ export const Wrapper = styled.div`
     height: 264px;
     min-height: 264px;
     width: 100%;
+    flex: 0 0 264px;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     box-sizing: border-box;
@@ -80,6 +110,12 @@ export const Wrapper = styled.div`
     canvas {
         border-top-left-radius: 16px;
         border-top-right-radius: 16px;
+    }
+
+    @media screen and (max-height: 700px) and (orientation: landscape) {
+        height: clamp(100px, 30dvh, 200px);
+        min-height: 100px;
+        flex: 0 0 clamp(100px, 30dvh, 200px);
     }
 `;
 
