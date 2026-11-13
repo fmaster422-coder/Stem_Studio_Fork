@@ -60,11 +60,24 @@ export const Player = () => {
         let cancelled = false;
         let redirectHandle: ReturnType<typeof setTimeout> | null = null;
 
+        const hideLoader = () => {
+    if (!cancelled) {
+        setShowMask(false);
+    }
+};
+
         /**
          *
          */
         async function loadSceneId() {
-            if (cancelled || !app) return; //redundant
+            if (cancelled) return;
+
+if (!app) {
+    toast.error("The game engine is not initialized. Please reload the page.");
+    hideLoader();
+    return;
+}
+            
             const splitPath = window.location.pathname.split("/");
 
             const isSandboxViewer = EngineRuntime.isSandboxViewer();
@@ -187,8 +200,7 @@ export const Player = () => {
                     // silently short-circuit that path — without this, the
                     // user is stuck on a permanent spinner instead of seeing
                     // the empty viewport + any error toast.
-                    if (cancelled) return;
-                    setShowMask(false);
+                    hideLoader();
                 });
         }
         void loadSceneId();
