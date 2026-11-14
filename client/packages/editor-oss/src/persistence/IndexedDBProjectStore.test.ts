@@ -173,7 +173,7 @@ describe("IndexedDBProjectStore round trip", () => {
         );
 
         await expect(store.importFromBlob(garbage)).rejects.toThrow(
-            "not a valid Stem Studio project",
+            "The selected file does not contain a valid Stem Studio project.",
         );
     });
 });
