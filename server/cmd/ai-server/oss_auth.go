@@ -1,56 +1,61 @@
+
 package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"net/http"
+	"os"
 
-	"github.com/dotErth/ai-3d-sandbox/stemstudio/helper"
 	"github.com/dotErth/ai-3d-sandbox/stemstudio/logger"
-	"github.com/dotErth/ai-3d-sandbox/stemstudio/server/constants"
-	serverContext "github.com/dotErth/ai-3d-sandbox/stemstudio/server/context"
 )
 
-// ossDummyToken is the constant the OSS editor sends in the Authorization
-// header. The OSS deployment trusts the local machine — there's no Firebase,
-// no multi-tenant identity, no billing. A single dummy token is enough to
-// keep the existing per-handler auth shape (`auth_params["token"].UID`)
-// working without changes to downstream code.
-const ossDummyToken = "stemstudio-token"
+const ossUserID = "stemstudio-local-user"
 
-// ossLocalIdentity is the minimal stand-in injected into the request
-// context. It exposes only the `UID` field that downstream AI handlers
-// read from a verified Firebase token; nothing else is needed in
-// single-user OSS mode.
 type ossLocalIdentity struct {
 	UID string
 }
 
-// ossAuthMiddleware accepts the constant `stemstudio-token` and rejects
-// anything else with 401. Mounted only by the ai-server binary via
-// `server.SetAuthMiddleware`. The combined / storage-server binaries
-// continue to use the Firebase-based validator from `server/middleware`.
-//
-// Routes registered with constants.None keep the original public-route
-// semantics (health, capabilities, configure-keys). Everything else must
-// carry the explicit local dummy token.
+// ossAuthMiddleware authenticates requests using a server-side secret.
+// The secret must be configured through AI_SERVER_TOKEN.
 func ossAuthMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	if authority, ok := serverContext.GetAPIAuthority(r.Method, r.URL.Path); ok && authority == constants.None {
+	// Keep the health endpoint public for hosting-platform health checks.
+	if r.Method == http.MethodGet && r.URL.Path == "/" {
 		next(w, r)
 		return
 	}
 
-	idToken := helper.ExtractIDToken(r)
-	if idToken != ossDummyToken {
-		http.Error(w, "Unauthorized (OSS)", http.StatusUnauthorized)
+	expectedToken := os.Getenv("AI_SERVER_TOKEN")
+	if expectedToken == "" {
+		http.Error(w, "AI server authentication is not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	receivedToken := r.Header.Get("Authorization")
+	const bearerPrefix = "Bearer "
+
+	if len(receivedToken) < len(bearerPrefix) ||
+		receivedToken[:len(bearerPrefix)] != bearerPrefix {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	receivedToken = receivedToken[len(bearerPrefix):]
+
+	if len(receivedToken) != len(expectedToken) ||
+		subtle.ConstantTimeCompare([]byte(receivedToken), []byte(expectedToken)) != 1 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	params := map[string]interface{}{
-		"token":     &ossLocalIdentity{UID: "stemstudio-local-user"},
-		"authority": constants.User,
+		"token":     &ossLocalIdentity{UID: ossUserID},
+		"authority": "user",
 		"isAdmin":   true,
 	}
+
 	ctx := context.WithValue(r.Context(), "auth_params", params)
-	ctx = logger.AddUserIDToContext(ctx, "stemstudio-local-user")
+	ctx = logger.AddUserIDToContext(ctx, ossUserID)
+
 	next(w, r.WithContext(ctx))
 }
