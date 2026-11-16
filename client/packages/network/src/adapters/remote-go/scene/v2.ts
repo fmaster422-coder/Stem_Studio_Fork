@@ -100,30 +100,49 @@ async function loadSceneFromProjectStore(sceneId: string): Promise<DomainSceneDt
     // binary assets so model/image/audio references in the scene JSON
     // resolve. The registry is module-level and empty after a page reload;
     // this restores it before the scene is deserialized.
+    
+
+    // Restore all binary assets before deserializing the scene.
+    // A missing or corrupted asset must stop the load instead of producing
+    // a scene that appears successful but is missing models, images or audio.
+    let assets;
+
     try {
-        const assets = await store.loadAssets(sceneId);
-        for (const a of assets) {
-            const mime = a.contentType
-                || (a.format === "json" ? "application/json" : "application/octet-stream");
-            const thumbMime = a.thumbnailContentType || "image/png";
-            const thumbnailDataUrl = a.thumbnailData
-                ? `data:${thumbMime};base64,${a.thumbnailData}`
-                : undefined;
-            registerOssAsset({
-                assetId: a.assetId,
-                revisionId: a.revisionId,
-                type: a.type as DomainAssetType,
-                format: a.format,
-                name: a.name,
-                contentType: a.contentType,
-                metadata: a.metadata,
-                dataUrl: `data:${mime};base64,${a.data}`,
-                thumbnailDataUrl,
-                projectId: sceneId,
-            });
-        }
+        assets = await store.loadAssets(sceneId);
     } catch (err) {
-        console.warn("[scene/v2] failed to restore project assets", err);
+        throw new Error(
+            `Unable to restore the binary assets of project "${sceneId}": ${
+                err instanceof Error ? err.message : String(err)
+            }`,
+            {cause: err},
+        );
+    }
+
+    for (const a of assets) {
+        const mime =
+            a.contentType ||
+            (a.format === "json"
+                ? "application/json"
+                : "application/octet-stream");
+
+        const thumbMime = a.thumbnailContentType || "image/png";
+
+        const thumbnailDataUrl = a.thumbnailData
+            ? `data:${thumbMime};base64,${a.thumbnailData}`
+            : undefined;
+
+        registerOssAsset({
+            assetId: a.assetId,
+            revisionId: a.revisionId,
+            type: a.type as DomainAssetType,
+            format: a.format,
+            name: a.name,
+            contentType: a.contentType,
+            metadata: a.metadata,
+            dataUrl: `data:${mime};base64,${a.data}`,
+            thumbnailDataUrl,
+            projectId: sceneId,
+        });
     }
 
     const sceneJsonBase64 = (() => {

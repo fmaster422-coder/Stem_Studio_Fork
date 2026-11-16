@@ -5,6 +5,24 @@ import {DirectCopilotProvider} from "./DirectCopilotProvider";
 import type {CopilotChatKey} from "./playgroundCopilotKeys";
 import type {PlaygroundLLMClient} from "./playgroundLLMClient";
 
+
+vi.mock("../editor/lambdas/util", async importOriginal => {
+    const actual = await importOriginal<typeof import("../editor/lambdas/util")>();
+    return {
+        ...actual,
+        updateSceneLambdaRevision: vi.fn().mockResolvedValue(undefined),
+    };
+});
+
+vi.mock("../editor/scripts/util", async importOriginal => {
+    const actual = await importOriginal<typeof import("../editor/scripts/util")>();
+    return {
+        ...actual,
+        updateSceneScriptRevision: vi.fn().mockResolvedValue(undefined),
+    };
+});
+
+
 const openAIKey: CopilotChatKey = {provider: "openai", apiKey: "sk-test", model: "gpt-5.5"};
 const anthropicKey: CopilotChatKey = {
     provider: "anthropic",
