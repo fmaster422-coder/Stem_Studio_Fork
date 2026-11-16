@@ -1,34 +1,43 @@
+
 package main
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/dotErth/ai-3d-sandbox/stemstudio/server/constants"
 )
 
-// TestOSSAuthAcceptsDummyToken verifies the ai-server single-user auth
-// shortcut: requests carrying the constant `stemstudio-token` pass through
-// without Firebase verification and the dummy local-user identity is
-// injected into the request context for downstream handlers.
-func TestOSSAuthAcceptsDummyToken(t *testing.T) {
+func TestOSSAuthAcceptsConfiguredToken(t *testing.T) {
+	t.Setenv("AI_SERVER_TOKEN", "test-secret-value")
+
 	req := httptest.NewRequest(http.MethodPost, "/api/AI/Agent", nil)
-	req.Header.Set("Authorization", "Bearer stemstudio-token")
+	req.Header.Set("Authorization", "Bearer test-secret-value")
 	rec := httptest.NewRecorder()
 
 	called := false
 	next := func(w http.ResponseWriter, r *http.Request) {
 		called = true
+
 		params, ok := r.Context().Value("auth_params").(map[string]interface{})
-		if !ok || params == nil {
+		if !ok {
 			t.Fatal("expected auth_params in request context")
 		}
+
 		token, ok := params["token"].(*ossLocalIdentity)
-		if !ok || token.UID != "stemstudio-local-user" {
-			t.Errorf("expected dummy UID stemstudio-local-user, got %#v", params["token"])
+		if !ok || token.UID != ossUserID {
+			t.Errorf("unexpected identity: %#v", params["token"])
 		}
-		if !params["isAdmin"].(bool) {
-			t.Error("expected isAdmin=true for OSS local user")
+
+		if params["authority"] != constants.User {
+			t.Errorf("expected authority %v, got %#v", constants.User, params["authority"])
 		}
+
+		if params["isAdmin"] != true {
+			t.Error("expected isAdmin=true")
+		}
+
 		w.WriteHeader(http.StatusOK)
 	}
 
@@ -42,15 +51,17 @@ func TestOSSAuthAcceptsDummyToken(t *testing.T) {
 	}
 }
 
-// TestOSSAuthRejectsWrongToken verifies that arbitrary tokens don't grant
-// access — only the literal `stemstudio-token` passes.
 func TestOSSAuthRejectsWrongToken(t *testing.T) {
+	t.Setenv("AI_SERVER_TOKEN", "test-secret-value")
+
 	req := httptest.NewRequest(http.MethodPost, "/api/AI/Agent", nil)
-	req.Header.Set("Authorization", "Bearer some-other-token-12345")
+	req.Header.Set("Authorization", "Bearer wrong-token")
 	rec := httptest.NewRecorder()
 
 	called := false
-	next := func(w http.ResponseWriter, r *http.Request) { called = true }
+	next := func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	}
 
 	ossAuthMiddleware(rec, req, next)
 
@@ -62,15 +73,16 @@ func TestOSSAuthRejectsWrongToken(t *testing.T) {
 	}
 }
 
-// TestOSSAuthRejectsMissingToken verifies that a request with no
-// Authorization header is rejected (the dummy-token check must be explicit
-// — empty != dummy).
 func TestOSSAuthRejectsMissingToken(t *testing.T) {
+	t.Setenv("AI_SERVER_TOKEN", "test-secret-value")
+
 	req := httptest.NewRequest(http.MethodPost, "/api/AI/Agent", nil)
 	rec := httptest.NewRecorder()
 
 	called := false
-	next := func(w http.ResponseWriter, r *http.Request) { called = true }
+	next := func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	}
 
 	ossAuthMiddleware(rec, req, next)
 
@@ -82,10 +94,30 @@ func TestOSSAuthRejectsMissingToken(t *testing.T) {
 	}
 }
 
-// TestOSSAuthBypassesPublicRoutes verifies constants.None routes keep the
-// same unauthenticated semantics as the combined server. Docker health checks
-// and the AI capability endpoint rely on this.
-func TestOSSAuthBypassesPublicRoutes(t *testing.T) {
+func TestOSSAuthRejectsUnconfiguredServer(t *testing.T) {
+	t.Setenv("AI_SERVER_TOKEN", "")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/AI/Agent", nil)
+	rec := httptest.NewRecorder()
+
+	called := false
+	next := func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	}
+
+	ossAuthMiddleware(rec, req, next)
+
+	if called {
+		t.Error("handler must not run without server configuration")
+	}
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected 503, got %d", rec.Code)
+	}
+}
+
+func TestOSSAuthBypassesPublicHealthRoute(t *testing.T) {
+	t.Setenv("AI_SERVER_TOKEN", "")
+
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
@@ -93,7 +125,7 @@ func TestOSSAuthBypassesPublicRoutes(t *testing.T) {
 	next := func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		if r.Context().Value("auth_params") != nil {
-			t.Fatal("public routes must not receive dummy auth_params")
+			t.Error("public health route must not receive auth_params")
 		}
 		w.WriteHeader(http.StatusOK)
 	}
@@ -101,7 +133,7 @@ func TestOSSAuthBypassesPublicRoutes(t *testing.T) {
 	ossAuthMiddleware(rec, req, next)
 
 	if !called {
-		t.Errorf("expected public route to reach handler, got status %d", rec.Code)
+		t.Errorf("expected health handler call, got status %d", rec.Code)
 	}
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", rec.Code)
