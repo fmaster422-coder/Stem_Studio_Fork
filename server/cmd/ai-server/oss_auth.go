@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/dotErth/ai-3d-sandbox/stemstudio/logger"
+	"github.com/dotErth/ai-3d-sandbox/stemstudio/server/constants"
 )
 
 const ossUserID = "stemstudio-local-user"
@@ -50,7 +51,7 @@ func ossAuthMiddleware(w http.ResponseWriter, r *http.Request, next http.Handler
 
 	params := map[string]interface{}{
 		"token":     &ossLocalIdentity{UID: ossUserID},
-		"authority": "user",
+		"authority": constants.User,
 		"isAdmin":   true,
 	}
 
