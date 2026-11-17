@@ -4,6 +4,7 @@ import {useEffect, useState} from "react";
 import {useTranslation} from "react-i18next";
 import {useNavigate} from "react-router-dom";
 import {toast} from "toastywave";
+import {RemoteAISettingsPanel} from "./RemoteAISettingsPanel";
 
 import logoutIcon from "./assets/arrow-up-right.svg";
 import {BYOKKeysPanel} from "./BYOKKeysPanel/BYOKKeysPanel";
