@@ -1,10 +1,15 @@
-
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 
 import {InMemoryBYOKKeyStore} from "./BYOKKeyStore";
 import {HttpAIBackend} from "./HttpAIBackend";
 
 const ORIGIN = "http://localhost";
+
+const localBackend = (keyStore?: InMemoryBYOKKeyStore) =>
+    new HttpAIBackend({
+        ...(keyStore ? {keyStore} : {}),
+        resolveUrl: path => `${ORIGIN}${path}`,
+    });
 
 describe("HttpAIBackend.capabilities", () => {
     let fetchSpy: ReturnType<typeof vi.fn>;
@@ -24,7 +29,7 @@ describe("HttpAIBackend.capabilities", () => {
     afterEach(() => vi.unstubAllGlobals());
 
     it("fetches AI capabilities", async () => {
-        const backend = new HttpAIBackend();
+        const backend = localBackend();
         const result = await backend.capabilities();
 
         expect(fetchSpy).toHaveBeenCalledWith(
@@ -36,9 +41,7 @@ describe("HttpAIBackend.capabilities", () => {
     });
 
     it("memoizes capabilities", async () => {
-        const backend = new HttpAIBackend({
-    resolveUrl: path => `${ORIGIN}${path}`,
-});
+        const backend = localBackend();
 
         await backend.capabilities();
         await backend.capabilities();
@@ -47,9 +50,7 @@ describe("HttpAIBackend.capabilities", () => {
     });
 
     it("refreshes capabilities when requested", async () => {
-        const backend = new HttpAIBackend({
-    resolveUrl: path => `${ORIGIN}${path}`,
-});
+        const backend = localBackend();
 
         await backend.capabilities();
         await backend.capabilities(true);
@@ -74,10 +75,7 @@ describe("HttpAIBackend.setProviderKey", () => {
     afterEach(() => vi.unstubAllGlobals());
 
     it("stores provider keys locally without sending them to the server", async () => {
-        const backend = new HttpAIBackend({
-    keyStore,
-    resolveUrl: path => `${ORIGIN}${path}`,
-});
+        const backend = localBackend(keyStore);
 
         const ok = await backend.setProviderKey("anthropic", "sk-test");
 
@@ -87,10 +85,7 @@ describe("HttpAIBackend.setProviderKey", () => {
     });
 
     it("rejects empty keys", async () => {
-        const backend = new HttpAIBackend({
-    keyStore,
-    resolveUrl: path => `${ORIGIN}${path}`,
-});
+        const backend = localBackend(keyStore);
 
         const ok = await backend.setProviderKey("anthropic", "   ");
 
@@ -99,7 +94,7 @@ describe("HttpAIBackend.setProviderKey", () => {
     });
 
     it("returns false without a key store", async () => {
-        const backend = new HttpAIBackend();
+        const backend = localBackend();
 
         const ok = await backend.setProviderKey("anthropic", "sk-test");
 
@@ -109,7 +104,7 @@ describe("HttpAIBackend.setProviderKey", () => {
     it("clears a provider key locally without contacting the server", async () => {
         await keyStore.set("anthropic", "sk-test");
 
-        const backend = new HttpAIBackend({keyStore});
+        const backend = localBackend(keyStore);
         await backend.clearProviderKey("anthropic");
 
         expect(await keyStore.get("anthropic")).toBeUndefined();
@@ -140,7 +135,7 @@ describe("HttpAIBackend BYOK header forwarding", () => {
     it("attaches the stored provider key to the matching request", async () => {
         await keyStore.set("anthropic", "stored-key");
 
-        const backend = new HttpAIBackend({keyStore});
+        const backend = localBackend(keyStore);
 
         await backend.request("/api/AI/Agent", {
             method: "POST",
@@ -159,7 +154,7 @@ describe("HttpAIBackend BYOK header forwarding", () => {
     it("does not attach a key without a provider hint", async () => {
         await keyStore.set("anthropic", "stored-key");
 
-        const backend = new HttpAIBackend({keyStore});
+        const backend = localBackend(keyStore);
 
         await backend.request("/api/AI/Agent", {
             method: "POST",
@@ -176,7 +171,7 @@ describe("HttpAIBackend BYOK header forwarding", () => {
     it("does not overwrite an explicit BYOK key", async () => {
         await keyStore.set("anthropic", "stored-key");
 
-        const backend = new HttpAIBackend({keyStore});
+        const backend = localBackend(keyStore);
 
         await backend.request("/api/AI/Agent", {
             method: "POST",
