@@ -187,7 +187,8 @@ export const SettingsPage = () => {
                     </div>
                 </AccountBox>
                 <CreditsSummary />
-                {IS_OSS ? <BYOKKeysPanel /> : null}
+                {IS_OSS ? <RemoteAISettingsPanel /> : null}
+{IS_OSS ? <BYOKKeysPanel /> : null}
                 <LogoutBox className="box">
                     <Heading>{t("Logout")}</Heading>
                     <StyledButton
