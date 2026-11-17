@@ -189,3 +189,68 @@ describe("HttpAIBackend BYOK header forwarding", () => {
         expect(callArg.headers["X-BYOK-Key"]).toBe("explicit-key");
     });
 });
+
+describe("HttpAIBackend authentication", () => {
+    let fetchSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        fetchSpy = vi.fn(async () =>
+            new Response("{}", {status: 200}),
+        );
+
+        vi.stubGlobal("fetch", fetchSpy);
+        vi.stubGlobal("window", {location: {origin: ORIGIN}});
+    });
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("attaches the configured Bearer token", async () => {
+        vi.stubGlobal("localStorage", {
+            getItem: vi.fn(() =>
+                JSON.stringify({
+                    baseUrl: ORIGIN,
+                    token: "test-server-token",
+                }),
+            ),
+        });
+
+        const backend = localBackend();
+
+        await backend.request("/api/AI/Agent", {
+            method: "POST",
+            body: {},
+        });
+
+        const callArg = fetchSpy.mock.calls[0]![1] as {
+            headers: Record<string, string>;
+        };
+
+        expect(callArg.headers.Authorization).toBe(
+            "Bearer test-server-token",
+        );
+    });
+
+    it("does not attach an empty Bearer token", async () => {
+        vi.stubGlobal("localStorage", {
+            getItem: vi.fn(() =>
+                JSON.stringify({
+                    baseUrl: ORIGIN,
+                    token: "",
+                }),
+            ),
+        });
+
+        const backend = localBackend();
+
+        await backend.request("/api/AI/Agent", {
+            method: "POST",
+            body: {},
+        });
+
+        const callArg = fetchSpy.mock.calls[0]![1] as {
+            headers: Record<string, string>;
+        };
+
+        expect(callArg.headers.Authorization).toBeUndefined();
+    });
+});
