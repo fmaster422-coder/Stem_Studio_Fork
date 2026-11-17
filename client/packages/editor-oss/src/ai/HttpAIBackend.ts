@@ -1,10 +1,15 @@
 
 import type {AIBackend} from "./AIBackend";
 import type {BYOKKeyStore} from "./BYOKKeyStore";
-import type {AICapabilities, AIProvider, AIRequestOptions, AIResponse} from "./types";
+import {getRemoteAIConfig} from "./RemoteAIConfig";
+import type {
+    AICapabilities,
+    AIProvider,
+    AIRequestOptions,
+    AIResponse,
+} from "./types";
 
 const CAPABILITIES_PATH = "/api/AI/Capabilities";
-
 const BYOK_HEADER = "X-BYOK-Key";
 const BYOK_PROVIDER_HEADER = "X-BYOK-Provider";
 
@@ -15,6 +20,13 @@ export interface HttpAIBackendOptions {
 
 const defaultResolveUrl = (path: string): string => {
     if (/^https?:\/\//i.test(path)) return path;
+
+    const config = getRemoteAIConfig();
+    const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
+
+    if (baseUrl) {
+        return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    }
 
     if (typeof window !== "undefined" && window.location?.origin) {
         return `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`;
@@ -30,8 +42,19 @@ export class HttpAIBackend implements AIBackend {
     constructor(private readonly options: HttpAIBackendOptions = {}) {}
 
     private resolveUrl(path: string): string {
-        if (this.options.resolveUrl) return this.options.resolveUrl(path);
-        return defaultResolveUrl(path);
+        return this.options.resolveUrl
+            ? this.options.resolveUrl(path)
+            : defaultResolveUrl(path);
+    }
+
+    private authHeaders(
+        headers: Record<string, string> = {},
+    ): Record<string, string> {
+        const token = getRemoteAIConfig().token.trim();
+
+        return token
+            ? {...headers, Authorization: `Bearer ${token}`}
+            : {...headers};
     }
 
     async capabilities(forceRefresh = false): Promise<AICapabilities> {
@@ -44,14 +67,15 @@ export class HttpAIBackend implements AIBackend {
         }
 
         this.capabilitiesPromise = (async () => {
-            const url = this.resolveUrl(CAPABILITIES_PATH);
-            const res = await fetch(url, {
+            const res = await fetch(this.resolveUrl(CAPABILITIES_PATH), {
                 method: "GET",
-                credentials: "include",
+                headers: this.authHeaders(),
             });
 
             if (!res.ok) {
-                throw new Error(`AI capabilities query failed: ${res.status}`);
+                throw new Error(
+                    `AI capabilities query failed: ${res.status}`,
+                );
             }
 
             const parsed = (await res.json()) as AICapabilities;
@@ -66,48 +90,53 @@ export class HttpAIBackend implements AIBackend {
         }
     }
 
-    async setProviderKey(provider: AIProvider, key: string): Promise<boolean> {
+    async setProviderKey(
+        provider: AIProvider,
+        key: string,
+    ): Promise<boolean> {
         const trimmed = key.trim();
 
         if (!trimmed || !this.options.keyStore) {
             return false;
         }
 
-        // Provider keys are stored locally only.
-        // They are sent individually through X-BYOK-Key when needed.
         await this.options.keyStore.set(provider, trimmed);
-
         this.capabilitiesCache = undefined;
+
         return true;
     }
 
     async clearProviderKey(provider: AIProvider): Promise<void> {
-        // Never clear a shared server-side key.
         await this.options.keyStore?.delete(provider);
         this.capabilitiesCache = undefined;
     }
 
-    private async dispatch(path: string, options: AIRequestOptions): Promise<Response> {
-        const url = this.resolveUrl(path);
-        const method = options.method ?? (options.body !== undefined ? "POST" : "GET");
-
+    private async dispatch(
+        path: string,
+        options: AIRequestOptions,
+    ): Promise<Response> {
         const body = options.body;
 
         const isStreamingBody =
             body instanceof FormData ||
             (typeof Blob !== "undefined" && body instanceof Blob) ||
-            (typeof ReadableStream !== "undefined" && body instanceof ReadableStream) ||
+            (typeof ReadableStream !== "undefined" &&
+                body instanceof ReadableStream) ||
             body instanceof ArrayBuffer ||
             ArrayBuffer.isView(body);
 
         const isString = typeof body === "string";
 
-        const headers: Record<string, string> = {
-            ...(isStreamingBody ? {} : {"Content-Type": "application/json"}),
+        const headers: Record<string, string> = this.authHeaders({
+            ...(isStreamingBody
+                ? {}
+                : {"Content-Type": "application/json"}),
             ...(options.headers ?? {}),
-        };
+        });
 
-        const targetProvider = headers[BYOK_PROVIDER_HEADER] as AIProvider | undefined;
+        const targetProvider = headers[
+            BYOK_PROVIDER_HEADER
+        ] as AIProvider | undefined;
 
         if (targetProvider && this.options.keyStore) {
             const stored = await this.options.keyStore.get(targetProvider);
@@ -117,10 +146,11 @@ export class HttpAIBackend implements AIBackend {
             }
         }
 
-        return fetch(url, {
-            method,
+        return fetch(this.resolveUrl(path), {
+            method:
+                options.method ??
+                (body !== undefined ? "POST" : "GET"),
             headers,
-            credentials: "include",
             signal: options.signal,
             body:
                 body === undefined
@@ -136,15 +166,13 @@ export class HttpAIBackend implements AIBackend {
         options: AIRequestOptions = {},
     ): Promise<AIResponse<T>> {
         const res = await this.dispatch(path, options);
-
-        let data: T;
         const contentType = res.headers.get("content-type") ?? "";
 
-        if (contentType.includes("application/json")) {
-            data = (await res.json()) as T;
-        } else {
-            data = (await res.text()) as unknown as T;
-        }
+        const data = (
+            contentType.includes("application/json")
+                ? await res.json()
+                : await res.text()
+        ) as T;
 
         return {
             ok: res.ok,
