@@ -23,20 +23,16 @@ func TestCrossOriginAllowsConfiguredSite(t *testing.T) {
 	CrossOriginMiddleware(rec, req, next)
 
 	if !called {
-		t.Fatal("expected allowed origin to reach handler")
+		t.Fatal("allowed origin should reach handler")
 	}
-
-	if rec.Header().Get("Access-Control-Allow-Origin") != defaultAllowedOrigin {
-		t.Errorf("unexpected allowed origin: %s",
-			rec.Header().Get("Access-Control-Allow-Origin"))
-	}
-
-	if rec.Header().Get("Access-Control-Allow-Credentials") != "true" {
-		t.Error("expected credentials to be allowed")
-	}
-
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", rec.Code)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != defaultAllowedOrigin {
+		t.Errorf("unexpected origin: %s", got)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Errorf("expected credentials true, got %s", got)
 	}
 }
 
@@ -57,7 +53,6 @@ func TestCrossOriginRejectsUnknownSite(t *testing.T) {
 	if called {
 		t.Error("unknown origin must not reach handler")
 	}
-
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("expected 403, got %d", rec.Code)
 	}
@@ -80,21 +75,18 @@ func TestCrossOriginHandlesPreflight(t *testing.T) {
 	CrossOriginMiddleware(rec, req, next)
 
 	if called {
-		t.Error("preflight must not reach the next middleware")
+		t.Error("preflight must not reach next handler")
 	}
-
 	if rec.Code != http.StatusNoContent {
 		t.Errorf("expected 204, got %d", rec.Code)
 	}
-
-	if rec.Header().Get("Access-Control-Allow-Origin") != defaultAllowedOrigin {
-		t.Error("expected allowed origin header")
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != defaultAllowedOrigin {
+		t.Errorf("unexpected origin: %s", got)
 	}
 }
 
-func TestCrossOriginAllowsConfiguredAdditionalOrigin(t *testing.T) {
-	t.Setenv("AI_ALLOWED_ORIGINS",
-		"https://3dweb.iceiy.com, http://localhost:5173")
+func TestCrossOriginAllowsAdditionalConfiguredOrigin(t *testing.T) {
+	t.Setenv("AI_ALLOWED_ORIGINS", "https://3dweb.iceiy.com,http://localhost:5173")
 
 	req := httptest.NewRequest(http.MethodGet, "/api/AI/Capabilities", nil)
 	req.Header.Set("Origin", "http://localhost:5173")
@@ -109,10 +101,9 @@ func TestCrossOriginAllowsConfiguredAdditionalOrigin(t *testing.T) {
 	CrossOriginMiddleware(rec, req, next)
 
 	if !called {
-		t.Fatal("configured additional origin should be allowed")
+		t.Fatal("additional configured origin should reach handler")
 	}
-
-	if rec.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
-		t.Error("unexpected origin header")
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
+		t.Errorf("unexpected origin: %s", got)
 	}
 }
