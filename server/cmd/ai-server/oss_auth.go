@@ -21,10 +21,10 @@ type ossLocalIdentity struct {
 // The secret must be configured through AI_SERVER_TOKEN.
 func ossAuthMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	// Keep the health endpoint public for hosting-platform health checks.
-	if r.Method == http.MethodGet && r.URL.Path == "/" {
-		next(w, r)
-		return
-	}
+	if (r.Method == http.MethodGet || r.Method == http.MethodHead) && r.URL.Path == "/" {
+    next(w, r)
+    return
+}
 
 	expectedToken := os.Getenv("AI_SERVER_TOKEN")
 	if expectedToken == "" {
