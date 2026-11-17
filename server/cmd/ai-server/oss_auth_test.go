@@ -139,3 +139,26 @@ func TestOSSAuthBypassesPublicHealthRoute(t *testing.T) {
 		t.Errorf("expected 200, got %d", rec.Code)
 	}
 }
+
+
+func TestOSSAuthBypassesHeadHealthRoute(t *testing.T) {
+    t.Setenv("AI_SERVER_TOKEN", "")
+
+    req := httptest.NewRequest(http.MethodHead, "/", nil)
+    rec := httptest.NewRecorder()
+
+    called := false
+    next := func(w http.ResponseWriter, r *http.Request) {
+        called = true
+        w.WriteHeader(http.StatusOK)
+    }
+
+    ossAuthMiddleware(rec, req, next)
+
+    if !called {
+        t.Errorf("expected HEAD health handler call, got status %d", rec.Code)
+    }
+    if rec.Code != http.StatusOK {
+        t.Errorf("expected 200, got %d", rec.Code)
+    }
+}
