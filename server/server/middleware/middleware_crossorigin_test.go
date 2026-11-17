@@ -1,52 +1,99 @@
+
 package middleware
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
-func TestCrossOriginMiddleware(t *testing.T) {
-	origin := "http://192.168.0.2"
-	hello := "Hello, world!"
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(hello))
-	}
-	// test server
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Header.Set("Origin", origin) // Header is case insensitive, `Origin` or `origin` is ok.
-		CrossOriginMiddleware(w, r, handler)
-	}))
-	defer ts.Close()
-	// get response
-	resp, err := http.Get(ts.URL)
-	if err != nil {
-		t.Error(err)
-	}
-	defer resp.Body.Close()
-	// check header
-	methodsHeader := resp.Header.Get("Access-Control-Allow-Methods")
-	originHeader := resp.Header.Get("Access-Control-Allow-Origin")
+func TestCrossOriginAllowsDefaultFrontend(t *testing.T) {
+	t.Setenv("AI_ALLOWED_ORIGINS", "")
 
-	if methodsHeader == "" ||
-		!strings.Contains(methodsHeader, "OPTIONS") ||
-		!strings.Contains(methodsHeader, "POST") ||
-		!strings.Contains(methodsHeader, "GET") {
-		t.Errorf("Access-Control-Allow-Methods is not set properly, got %v", methodsHeader)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Origin", defaultAllowedOrigin)
+	rec := httptest.NewRecorder()
+
+	called := false
+	next := func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
 	}
 
-	if originHeader != "*" {
-		t.Errorf("Access-Control-Allow-Origin is not set properly, got %v", originHeader)
+	CrossOriginMiddleware(rec, req, next)
+
+	if !called {
+		t.Fatal("expected allowed origin to reach handler")
 	}
-	// check body
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
+	if rec.Header().Get("Access-Control-Allow-Origin") != defaultAllowedOrigin {
+		t.Errorf("unexpected allowed origin: %q", rec.Header().Get("Access-Control-Allow-Origin"))
 	}
-	str := string(bytes)
-	if str != hello {
-		t.Errorf("expect %v, got %v", hello, str)
+}
+
+func TestCrossOriginRejectsUnknownOrigin(t *testing.T) {
+	t.Setenv("AI_ALLOWED_ORIGINS", "")
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Origin", "https://unknown.example")
+	rec := httptest.NewRecorder()
+
+	called := false
+	CrossOriginMiddleware(rec, req, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	})
+
+	if called {
+		t.Error("unknown origin must not reach handler")
+	}
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", rec.Code)
+	}
+}
+
+func TestCrossOriginHandlesPreflight(t *testing.T) {
+	t.Setenv("AI_ALLOWED_ORIGINS", "")
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/AI/Agent", nil)
+	req.Header.Set("Origin", defaultAllowedOrigin)
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	rec := httptest.NewRecorder()
+
+	called := false
+	CrossOriginMiddleware(rec, req, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	})
+
+	if called {
+		t.Error("preflight must not reach the next handler")
+	}
+	if rec.Code != http.StatusNoContent {
+		t.Errorf("expected 204, got %d", rec.Code)
+	}
+	if rec.Header().Get("Access-Control-Allow-Origin") != defaultAllowedOrigin {
+		t.Error("expected allowed origin header")
+	}
+	if rec.Header().Get("Access-Control-Allow-Methods") == "" {
+		t.Error("expected allowed methods header")
+	}
+}
+
+func TestCrossOriginAllowsConfiguredAdditionalOrigin(t *testing.T) {
+	t.Setenv("AI_ALLOWED_ORIGINS", defaultAllowedOrigin+", http://localhost:5173")
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	rec := httptest.NewRecorder()
+
+	called := false
+	CrossOriginMiddleware(rec, req, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	if !called {
+		t.Fatal("configured additional origin should be allowed")
+	}
+	if rec.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
+		t.Error("unexpected Access-Control-Allow-Origin")
 	}
 }
