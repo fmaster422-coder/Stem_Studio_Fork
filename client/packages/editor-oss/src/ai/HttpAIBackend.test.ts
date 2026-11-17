@@ -36,7 +36,9 @@ describe("HttpAIBackend.capabilities", () => {
     });
 
     it("memoizes capabilities", async () => {
-        const backend = new HttpAIBackend();
+        const backend = new HttpAIBackend({
+    resolveUrl: path => `${ORIGIN}${path}`,
+});
 
         await backend.capabilities();
         await backend.capabilities();
@@ -45,7 +47,9 @@ describe("HttpAIBackend.capabilities", () => {
     });
 
     it("refreshes capabilities when requested", async () => {
-        const backend = new HttpAIBackend();
+        const backend = new HttpAIBackend({
+    resolveUrl: path => `${ORIGIN}${path}`,
+});
 
         await backend.capabilities();
         await backend.capabilities(true);
@@ -70,7 +74,10 @@ describe("HttpAIBackend.setProviderKey", () => {
     afterEach(() => vi.unstubAllGlobals());
 
     it("stores provider keys locally without sending them to the server", async () => {
-        const backend = new HttpAIBackend({keyStore});
+        const backend = new HttpAIBackend({
+    keyStore,
+    resolveUrl: path => `${ORIGIN}${path}`,
+});
 
         const ok = await backend.setProviderKey("anthropic", "sk-test");
 
@@ -80,7 +87,10 @@ describe("HttpAIBackend.setProviderKey", () => {
     });
 
     it("rejects empty keys", async () => {
-        const backend = new HttpAIBackend({keyStore});
+        const backend = new HttpAIBackend({
+    keyStore,
+    resolveUrl: path => `${ORIGIN}${path}`,
+});
 
         const ok = await backend.setProviderKey("anthropic", "   ");
 
