@@ -1,3 +1,4 @@
+
 package ai
 
 import (
@@ -10,20 +11,21 @@ import (
 
 	"github.com/dotErth/ai-3d-sandbox/stemstudio/server/constants"
 	serverContext "github.com/dotErth/ai-3d-sandbox/stemstudio/server/context"
+	"github.com/dotErth/ai-3d-sandbox/stemstudio/server/controllers/tools/ai/byok"
 	"github.com/dotErth/ai-3d-sandbox/stemstudio/server/controllers/tools/ai/helpers"
 	"github.com/dotErth/ai-3d-sandbox/stemstudio/server/controllers/tools/ai/userlimits"
 )
 
 type AgentRequestData struct {
 	UserMessage        string `json:"userMessage"`
-	ThreadID           string `json:"threadId,omitempty"` // Optional thread ID for context
+	ThreadID           string `json:"threadId,omitempty"`
 	SceneData          string `json:"sceneData,omitempty"`
 	PlayerData         string `json:"playerData,omitempty"`
 	LookAtPointData    string `json:"lookAtPointData,omitempty"`
 	SelectedObjectData string `json:"selectedObjectData,omitempty"`
 	BehaviorConfig     string `json:"behaviorConfig,omitempty"`
-	SearchResults      string `json:"searchResults,omitempty"` // For generate commands prompt
-	AgentMode          string `json:"agentMode,omitempty"`     // "editor" or "sandbox_generation"
+	SearchResults      string `json:"searchResults,omitempty"`
+	AgentMode          string `json:"agentMode,omitempty"`
 }
 
 type AgentResponse struct {
@@ -59,7 +61,6 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields
 	if requestData.UserMessage == "" {
 		respondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "userMessage is required",
@@ -67,32 +68,38 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get environment variables for OpenAI Assistant
-	apiKey := os.Getenv("OPENAI_API_KEY")
+	// Resolve OpenAI credentials.
+	// Server environment variables always take priority.
+	// If none is configured, use the BYOK key sent by the editor.
+	apiKey, _ := byok.ResolveFromRequest(
+		r,
+		"openai",
+		byok.ProviderEnvVars("openai")...,
+	)
+
+	if apiKey == "" {
+		respondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "OpenAI API key not configured. Add an OpenAI key in Stem Studio settings or configure OPENAI_API_KEY on the AI server.",
+		})
+		return
+	}
+
+	// Assistant IDs remain server-side configuration.
 	assistantID := os.Getenv("OPENAI_ASSISTANT_ID")
 
 	if requestData.AgentMode == "sandbox_generation" {
 		assistantID = os.Getenv("OPENAI_ASSISTANT_ID_SANDBOX_GENERATION")
 	}
 
-	if apiKey == "" {
-		respondWithJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "OpenAI API key not configured",
-		})
-		return
-	}
-
 	if assistantID == "" {
-		respondWithJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "OpenAI Assistant ID not configured",
+		respondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "OpenAI Assistant ID is not configured on the AI server.",
 		})
 		return
 	}
 
-	// Create OpenAI Assistant client
 	assistantClient := helpers.NewAssistantClient(apiKey, assistantID)
 
-	// Build context message with available data
 	contextMessage := buildContextMessage(requestData)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -102,10 +109,12 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if requestData.ThreadID != "" {
-		// Continue existing conversation
-		response, err = assistantClient.ContinueConversation(ctx, requestData.ThreadID, contextMessage)
+		response, err = assistantClient.ContinueConversation(
+			ctx,
+			requestData.ThreadID,
+			contextMessage,
+		)
 	} else {
-		// Start new conversation
 		response, err = assistantClient.SubmitPrompt(ctx, contextMessage)
 	}
 
@@ -116,13 +125,11 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decrement user's copilot limit
 	if err := userlimits.ConsumeCopilot(r, 1); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Return response
 	agentResponse := AgentResponse{
 		AgentResponse: response.Response,
 		ThreadID:      response.ThreadID,
@@ -131,11 +138,9 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, agentResponse)
 }
 
-// buildContextMessage constructs a comprehensive message for the assistant
 func buildContextMessage(data AgentRequestData) string {
 	message := data.UserMessage
 
-	// Add context information if available
 	if data.SceneData != "" {
 		message += "\n\nScene context: " + data.SceneData
 	}
