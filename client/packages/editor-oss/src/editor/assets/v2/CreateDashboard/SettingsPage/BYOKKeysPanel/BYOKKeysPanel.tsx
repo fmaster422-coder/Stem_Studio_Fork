@@ -65,7 +65,7 @@ const sourceText = (
     }
 
     if (localReady) {
-        return "saved in this browser; sent with matching requests";
+        return "saved in this browser; used by matching AI features";
     }
 
     if (source === "byok-session") {
@@ -338,12 +338,12 @@ export const BYOKKeysPanel = ({
 
             <Hint>
                 Bring your own keys for AI features. Your personal keys are
-                stored in this browser&apos;s IndexedDB. When an AI request
-                uses the corresponding provider, the key is sent to your
-                configured remote AI server so that it can contact that
-                provider. Keys are not synchronized to another browser.
-                If the remote server has a key configured in its environment,
-                that server key always takes priority.
+stored in this browser&apos;s IndexedDB. The Playground Copilot
+uses these keys to contact the selected AI provider directly.
+Other AI features that use the remote AI backend send their
+keys to your configured server. Keys are not synchronized
+to another browser. Server environment keys take priority
+for requests handled by the remote AI backend.
                 {byokStore ? (
                     <>
                         {" "}
