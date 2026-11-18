@@ -1,3 +1,10 @@
+import {HiOutlineTrash} from "react-icons/hi2";
+
+import {
+    getProjectStore,
+    ensureProjectStoreRehydrated,
+} from "@stem/editor-oss/persistence";
+
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, {useState} from "react";
