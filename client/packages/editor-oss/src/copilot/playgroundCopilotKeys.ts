@@ -206,11 +206,27 @@ function modelStorageKey(provider: CopilotChatProvider): string {
     return `stem.playground.copilot.${provider}Model`;
 }
 
-function normalizeProviderModel(provider: CopilotChatProvider, model: string | null | undefined): string {
+function normalizeProviderModel(
+    provider: CopilotChatProvider,
+    model: string | null | undefined,
+): string {
     if (provider === "openai") {
         return OPENAI_COPILOT_MODEL;
     }
-    return model?.trim() || COPILOT_DEFAULT_MODELS[provider];
+
+    const normalized = model?.trim();
+
+    if (provider === "gemini") {
+        const isSupported = COPILOT_MODEL_OPTIONS.gemini.some(
+            option => option.model === normalized,
+        );
+
+        return isSupported
+            ? normalized!
+            : COPILOT_DEFAULT_MODELS.gemini;
+    }
+
+    return normalized || COPILOT_DEFAULT_MODELS[provider];
 }
 
 function readProviderModel(provider: CopilotChatProvider): string {
