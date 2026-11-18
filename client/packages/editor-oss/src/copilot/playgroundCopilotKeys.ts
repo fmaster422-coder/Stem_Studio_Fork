@@ -54,11 +54,9 @@ export const COPILOT_MODEL_OPTIONS: Record<CopilotChatProvider, Array<{label: st
         {label: "GPT-5.5 High", model: OPENAI_COPILOT_MODEL},
     ],
     gemini: [
-        {label: "Gemini 2.5 Flash", model: "gemini-2.5-flash"},
-        {label: "Gemini 2.5 Pro", model: "gemini-2.5-pro"},
-        {label: "Gemini Flash Latest", model: "gemini-flash-latest"},
-        {label: "Gemini 3 Flash Preview", model: "gemini-3-flash-preview"},
-    ],
+    {label: "Gemini 3.8 Flash", model: "gemini-3.8-flash"},
+    {label: "Gemini Flash Latest", model: "gemini-flash-latest"},
+],
 };
 
 export type CopilotChatKey = {
