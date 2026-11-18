@@ -757,7 +757,7 @@ export const AiCopilot = ({isOpen, setIsOpen, pinnedCodeEditorWidth, onResize, o
         const index = typeof event?.data?.index === "number" ? event.data.index + 1 : undefined;
         const total = typeof event?.data?.total === "number" ? event.data.total : undefined;
         const prefix = index && total ? `${index}/${total}` : "step";
-        if (isPlayground && mode === "chat" && line && isOpenAIStreamWorkflowLine(line)) {
+        {(isPlayground || IS_OSS) && ( mode === "chat" && line && isOpenAIStreamWorkflowLine(line)) {
             setProcessingStatus(prev => ({...prev, main: line}));
         }
         appendProcessMessage(line ? `- ${prefix}: \`${line}\`` : "- Tool progress updated", "workflow");
