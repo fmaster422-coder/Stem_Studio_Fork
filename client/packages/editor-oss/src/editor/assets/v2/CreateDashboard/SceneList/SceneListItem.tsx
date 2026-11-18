@@ -164,6 +164,7 @@ export const SceneListItem = React.memo(
         // Any other surface keeps the legacy layout (Edit when owner, Remix,
         // Play) so detail pages and search results are unaffected.
         const isDashboardRoute = resolvedRouteKind === "dashboard";
+        const showDeleteButton = IS_OSS && isDashboardRoute && !isNewGameItem;
         const isDiscoverRoute = resolvedRouteKind === "discover";
         const showEditButton = isOwnedByViewer && !isDiscoverRoute;
         // OSS hides Remix everywhere: every project is local and
