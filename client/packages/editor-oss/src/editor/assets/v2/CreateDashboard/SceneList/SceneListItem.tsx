@@ -98,7 +98,7 @@ export const SceneListItem = React.memo(
         const location = useLocation();
         const navigate = useNavigate();
         const {dbUser, isAuthorized} = useAuthorizationContext();
-        const [isForking, setIsForking] = useState(false);
+        const [isDeleting, setIsDeleting] = useState(false);
         const isPlayground = isPlaygroundMode();
 
         // Resolve the route from the explicit prop when supplied (the
