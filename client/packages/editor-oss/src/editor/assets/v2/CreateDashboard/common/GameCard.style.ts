@@ -755,6 +755,26 @@ export const CardActionEditButton = styled.button`
     }
 `;
 
+export const CardActionDeleteButton = styled.button`
+    ${cardActionBase};
+
+    flex: 0.75 1 0;
+    background: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+
+    svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+
+    &:hover:not(:disabled) {
+        filter: none;
+        background: rgba(239, 68, 68, 0.28);
+        color: #ffffff;
+    }
+`;
+
 export const CardActionPlayButton = styled.button`
     ${cardActionBase};
     /* Play gets an extra 20% allocation vs the baseline — makes the
