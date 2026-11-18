@@ -249,6 +249,49 @@ export const SceneListItem = React.memo(
             openEditorRoute(generateProjectLink(item.ID));
         };
 
+const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!IS_OSS || isNewGameItem || !item.ID || isDeleting) {
+        return;
+    }
+
+    const confirmed = window.confirm(
+        `Are you sure you want to permanently delete "${item.Name}"?`,
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+
+    try {
+        // Make sure the correct storage backend is active.
+        await ensureProjectStoreRehydrated();
+
+        // Delete the project and its associated binary assets.
+        await getProjectStore().delete(item.ID);
+
+        showToast({
+            type: "success",
+            title: "Project deleted successfully.",
+        });
+
+        // Refresh the dashboard so the deleted card disappears.
+        window.location.reload();
+    } catch (error) {
+        console.error("[SceneListItem] Project deletion failed:", error);
+
+        showToast({
+            type: "error",
+            title: error instanceof Error
+                ? error.message
+                : "Failed to delete project.",
+        });
+
+        setIsDeleting(false);
+    }
+};
+
         const remixCount = item.RemixCount ?? 0;
         const playCount = item.PlayCount ?? 0;
         const shareCount = item.ShareCount ?? 0;
