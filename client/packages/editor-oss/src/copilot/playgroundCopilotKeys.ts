@@ -231,10 +231,21 @@ function normalizeProviderModel(
 
 function readProviderModel(provider: CopilotChatProvider): string {
     const storage = getLocalStorage();
-    if (!storage) return COPILOT_DEFAULT_MODELS[provider];
+
+    if (!storage) {
+        return COPILOT_DEFAULT_MODELS[provider];
+    }
+
     try {
         const override = storage.getItem(modelStorageKey(provider))?.trim();
-        return normalizeProviderModel(provider, override);
+        const normalized = normalizeProviderModel(provider, override);
+
+        // Migrate an obsolete Gemini model saved by an older build.
+        if (provider === "gemini" && override && override !== normalized) {
+            storage.setItem(modelStorageKey(provider), normalized);
+        }
+
+        return normalized;
     } catch {
         return COPILOT_DEFAULT_MODELS[provider];
     }
