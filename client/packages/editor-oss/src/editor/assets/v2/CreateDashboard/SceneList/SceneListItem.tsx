@@ -413,6 +413,22 @@ const handleDelete = async (e: React.MouseEvent) => {
                                     <CardActionLabel>Edit</CardActionLabel>
                                 </CardActionEditButton>
                             )}
+
+
+{showDeleteButton && (
+    <CardActionDeleteButton
+        onClick={handleDelete}
+        disabled={isDeleting}
+        aria-label={`Delete ${item.Name}`}
+        title="Delete project"
+        data-testid="game-card-delete"
+    >
+        <HiOutlineTrash aria-hidden="true" />
+        <CardActionLabel>
+            {isDeleting ? "…" : "Delete"}
+        </CardActionLabel>
+    </CardActionDeleteButton>
+)}
                             {showRemixButton && (
                                 <CardActionForkButton
                                     onClick={handleFork}
