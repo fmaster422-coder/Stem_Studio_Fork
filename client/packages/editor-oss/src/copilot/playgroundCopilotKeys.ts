@@ -40,7 +40,7 @@ export const OPENAI_COPILOT_REASONING_EFFORT = "high";
 export const COPILOT_DEFAULT_MODELS: Record<CopilotChatProvider, string> = {
     anthropic: "claude-sonnet-4-5-20250929",
     openai: OPENAI_COPILOT_MODEL,
-    gemini: "gemini-2.5-flash",
+    gemini: "gemini-3.8-flash",
 };
 
 export const COPILOT_MODEL_OPTIONS: Record<CopilotChatProvider, Array<{label: string; model: string}>> = {
