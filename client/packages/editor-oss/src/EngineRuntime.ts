@@ -1833,9 +1833,9 @@ export class EngineRuntime extends AppRuntime implements RuntimeContext {
             this.disableClickEvents = !!cameraOptions?.usePointerLock || !isSandbox;
 
             console.debug("🎮 [Application] Handling HUD visibility...");
-            if (this.editor?.showHUD) {
-                this.playerMask.hide();
-            }
+
+// The loading mask must disappear regardless of HUD visibility.
+this.playerMask.hide();
 
             // Hold the loading overlay until the first frame has actually
             // rendered. That first render is where any not-yet-warmed material
