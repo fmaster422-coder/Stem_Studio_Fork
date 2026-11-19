@@ -273,27 +273,30 @@ export const Player = () => {
         };
     }, [app, projectID, isInitializingAuth]);
 
-    const onShowMask = (enabled: boolean, isAuto: boolean = true) => {
+    useEffect(() => {
+    const container = document.getElementById("container");
+
+    if (container) {
+        container.style.overflow = "hidden";
+    }
+
+    if (!app) return;
+
+    const handleShowMask = (
+        enabled: boolean,
+        isAuto: boolean = true,
+    ) => {
         setShowMask(enabled);
         setIsAutoLoadingMask(isAuto);
     };
 
-    useEffect(() => {
-        const container = document.getElementById("container");
+    app.on("showMask.Player", handleShowMask);
 
-        if (container) {
-            container.style.overflow = "hidden";
-        }
-
-        app?.on("showMask.Player", onShowMask);
-
-        return () => {
-            if (app) {
-                app.options.isPlayModeOnly = false;
-                app.on("showMask.Player", null);
-            }
-        };
-    }, []);
+    return () => {
+        app.options.isPlayModeOnly = false;
+        app.on("showMask.Player", null);
+    };
+}, [app]);
 
     useEffect(() => {
         if (!app?.container) return;
