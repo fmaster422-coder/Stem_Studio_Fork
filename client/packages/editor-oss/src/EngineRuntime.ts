@@ -1586,10 +1586,22 @@ export class EngineRuntime extends AppRuntime implements RuntimeContext {
             this.editor?.component?.hideUI();
             this.unmask();
         } catch (error) {
-            await this.stopPlayer();
-            console.error("There was an error starting the player", error);
-            throw error;
-        }
+    try {
+        await this.stopPlayer();
+    } catch (stopError) {
+        console.warn(
+            "[Application] Player cleanup failed:",
+            stopError,
+        );
+    } finally {
+        // Never leave the loading overlay visible after a failed startup.
+        this.playerMask.hide();
+        this.unmask();
+    }
+
+    console.error("There was an error starting the player", error);
+    throw error;
+}
     }
 
     private async stopPlayMode() {
