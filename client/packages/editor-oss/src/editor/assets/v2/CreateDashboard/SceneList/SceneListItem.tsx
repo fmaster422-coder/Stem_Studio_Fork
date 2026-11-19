@@ -31,6 +31,7 @@ import gamePlaceholder from "../../icons/stem-studio-project-placeholder.png";
 import {FileData} from "../../types/file";
 import {
     CardActionCount,
+    CardActionDeleteButton,
     CardActionEditButton,
     CardActionForkButton,
     CardActionLabel,
