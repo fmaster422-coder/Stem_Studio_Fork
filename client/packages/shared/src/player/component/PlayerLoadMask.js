@@ -65,10 +65,15 @@ class PlayerLoadMask extends PlayerComponent {
     }
 
     hide() {
+    if (this.container) {
         this.container.style.display = "none";
+    }
+
+    if (this.status) {
         this.status.style.display = "none";
         this.status.innerHTML = "";
     }
+}
 
     dispose() {}
 }
